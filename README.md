@@ -17,4 +17,6 @@ Let’s say your multimeter is plugged and recognized as "/dev/ttyUSB0" device
 
 data can easily be converted into .csv, or plotted through gnuplot :
 
+    $ ./bf117.py < data.dump > yourdatafile
+    $ gnuplot
     gnuplot> plot 'yourdatafile' using 1:2 with linespoints

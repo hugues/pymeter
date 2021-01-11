@@ -140,7 +140,7 @@ try:
         debug('#  power : {}'.format(power))
         value *= mult * 10 ** power
 
-        print('{}'.format(value))
+        print('{} {}'.format(now, value))
 
 except KeyboardInterrupt:
     debug('-- EOT --')

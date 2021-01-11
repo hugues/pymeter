@@ -120,7 +120,7 @@ try:
         if data[18] & 0x80:
             unit += 'F'
         elif data[18] & 0x02:
-            unit = '°F'
+            unit += '°F'
         elif data[18] & 0x01:
             unit += '°C'
         elif data[19] & 0x80:

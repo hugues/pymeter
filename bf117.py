@@ -5,6 +5,8 @@ import serial
 import time
 import sys
 
+want_bargraph = False
+
 #         0x01
 #        ______
 #       |      |
@@ -99,25 +101,91 @@ try:
             value *= 10
             value += digit(data[d])
 
+        # ---------------------------------------
+        # Other useful data
+        # ---------------------------------------
+        # Byte 8
+        # 0x80 0x40 0x20 0x10 0x08 0x04 0x02 0x01
+        # NEG  BUZZ GRPH             DC   AC DIOD
+        #
+        # Byte 9-15
+        # 0x80 0x40 0x20 0x10 0x08 0x04 0x02 0x01
+        # |||||||||||||||||||||||||||||||||||||||
+        #
+        # Byte 16
+        # 0x80 0x40 0x20 0x10 0x08 0x04 0x02 0x01
+        #  REL      AUTO      |||||||||||||||||||
+        #
+        # Byte 17
+        # 0x80 0x40 0x20 0x10 0x08 0x04 0x02 0x01
+        #       hFE    %       MIN   -   MAX
+        #
+        # Byte 18
+        # 0x80 0x40 0x20 0x10 0x08 0x04 0x02 0x01
+        #    F    n    µ                  °F   °C
+        #
+        # Byte 19
+        # 0x80 0x40 0x20 0x10 0x08 0x04 0x02 0x01
+        #   Hz    Ω    k    M    V    A    m    µ
+
+        mode = ''
+        if data[8] & 0x40:
+            mode += '[BUZ]'
+        if data[8] & 0x04:
+            mode += '[DC]'
+        if data[8] & 0x02:
+            mode += '[AC]'
+        if data[8] & 0x01:
+            mode += '[DIODE]'
+        if data[16] & 0x80:
+            mode += '[REL]'
+        if data[16] & 0x20:
+            mode += '[AUTO]'
+        if data[17] & 0x08:
+            mode += '[MIN]'
+        if data[17] & 0x02:
+            mode += '[MAX]'
+
+        bars = '-'
+        bargraph = ''
+        if data[8] & 0x20:
+            bars = 0
+            bargraph = ' '
+            for B in range(9, 16+1):
+                for b in range(0, 8):
+                    if B == 16 and b > 3:
+                        break
+                    if data[B] & 2**b:
+                        bars += 1
+
+            if want_bargraph:
+                for i in range(0, bars):
+                    bargraph += '|'
+
         unit = ''
+        subunit = ''
         # Read and decode the multiplier (M, K, m, µ, n)
         if data[18] & 0x40:
-            unit = 'n'
+            subunit = 'n'
             power -= 12
         elif data[18] & 0x20 or data[17] & 0x01:
-            unit = 'µ'
+            subunit = 'µ'
             power -= 9
         elif data[17] & 0x02:
-            unit = 'm'
+            subunit = 'm'
             power -= 3
         elif data[17] & 0x20:
-            unit = 'k'
+            subunit = 'k'
             power += 3
         elif data[17] & 0x10:
-            unit = 'M'
+            subunit = 'M'
             power += 6
 
-        if data[18] & 0x80:
+        if data[17] & 0x40:
+            unit += 'hFE'
+        elif data[17] & 0x20:
+            unit += '%'
+        elif data[18] & 0x80:
             unit += 'F'
         elif data[18] & 0x02:
             unit += '°F'
@@ -132,15 +200,17 @@ try:
         elif data[19] & 0x04:
             unit += 'A'
 
-        debug(' {:s}'.format(unit))
+        debug(' {}{:s}'.format(subunit, unit))
 
 
         debug('#  value : {}'.format(value))
         debug('#  mult : {}'.format(mult))
         debug('#  power : {}'.format(power))
+        debug('#  modes : {}'.format(mode))
+        debug('#  bargraph ({}){}'.format(bars, bargraph))
         value *= mult * 10 ** power
 
-        print('{} {}'.format(now, value))
+        print('{} {} {}{}  {} {}{}'.format(now, value, subunit, unit, bars, mode, bargraph))
 
 except KeyboardInterrupt:
     debug('-- EOT --')
